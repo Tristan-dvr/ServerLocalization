@@ -396,3 +396,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+*.zip
+ServerLocalization.dll
+Newtonsoft.Json.dll
