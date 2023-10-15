@@ -12,9 +12,11 @@ namespace ServerLocalization
     [BepInPlugin(Guid, Name, Version)]
     internal class Plugin : BaseUnityPlugin
     {
+        private const string DefaultLanguage = "English";
+
         public const string Guid = "org.tristan.serverlocalization";
         public const string Name = "Server Localization";
-        public const string Version = "1.1.0";
+        public const string Version = "1.1.2";
 
         private const string LocalizationDataRpc = "ServerLocalization_LocalizationDataRpc";
 
@@ -50,7 +52,7 @@ namespace ServerLocalization
                 }
                 catch (Exception e)
                 {
-                    Log.Info($"Cannot parse localization file {file}: {e.Message}\n{e.StackTrace}");
+                    Log.Error($"Cannot parse localization file {file}: {e.Message}\n{e.StackTrace}");
                 }
             }
         }
@@ -72,26 +74,43 @@ namespace ServerLocalization
                     rpc.Invoke(LocalizationDataRpc, _localizationData);
             }
 
+            [HarmonyPostfix, HarmonyPatch(typeof(Localization), nameof(Localization.SetupLanguage))]
+            private static void Localization_SetupLanguage(string language)
+            {
+                SetupServerLocalization(language);
+            }
+
+            [HarmonyPrefix, HarmonyPatch(typeof(FejdStartup), nameof(FejdStartup.Awake))]
+            private static void FejdStartup_Awake()
+            {
+                SetupServerLocalization(Localization.instance.GetSelectedLanguage());
+            }
+
             private static void OnLocalizationDataReceived(ZRpc arg1, LocalizationData localizationData)
             {
                 _localizationData.SetData(localizationData);
                 Log.Info($"Server localization received. {localizationData}");
-                var localization = Localization.instance;
-                var selectedLanguage = localization.GetSelectedLanguage();
-                foreach (var lang in _localizationData.GetLanguages().Where(l => localization.GetLanguages().Contains(l) && l != selectedLanguage))
+
+                SetupServerLocalization(Localization.instance.GetSelectedLanguage());
+            }
+
+            private static void SetupServerLocalization(string language)
+            {
+                var languages = _localizationData.GetLanguages();
+                if (languages.Contains(DefaultLanguage))
                 {
-                    AddTranslations(lang);
+                    AddTranslations(DefaultLanguage);
                 }
-                if (_localizationData.GetLanguages().Contains(selectedLanguage))
+                if (languages.Contains(language))
                 {
-                    AddTranslations(selectedLanguage);
+                    AddTranslations(language);
                 }
             }
 
             private static void AddTranslations(string language)
             {
                 var translations = _localizationData.GetTranslations(language);
-                Log.Debug($"Added server localization {language}");
+                Log.Info($"Added server localization {language}");
                 foreach (var t in translations)
                 {
                     Localization.instance.AddWord(t.Key, t.Value);

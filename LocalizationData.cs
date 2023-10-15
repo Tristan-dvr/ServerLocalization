@@ -7,6 +7,8 @@ namespace ServerLocalization
     {
         private Dictionary<string, Dictionary<string, string>> _localizationData = new Dictionary<string, Dictionary<string, string>>();
 
+        private ZPackage _tempPkg = new ZPackage();
+
         public void ClearAll()
         {
             _localizationData.Clear();
@@ -14,39 +16,46 @@ namespace ServerLocalization
 
         public void Deserialize(ref ZPackage pkg)
         {
+            Log.Debug($"Received server localization package. Size: {pkg.Size()}");
+
             _localizationData.Clear();
 
-            var languagesCount = pkg.ReadInt();
-            Dictionary<string, string> _languageData;
+            _tempPkg = pkg.ReadCompressedPackage();
+
+            var languagesCount = _tempPkg.ReadInt();
+            Dictionary<string, string> languageData;
             for (int i = 0; i < languagesCount; i++)
             {
-                var keysCount = pkg.ReadInt();
-                var language = pkg.ReadString();
+                var keysCount = _tempPkg.ReadInt();
+                var language = _tempPkg.ReadString();
 
-                _languageData = new Dictionary<string, string>();
-                _localizationData[language] = _languageData;
+                languageData = new Dictionary<string, string>();
+                _localizationData[language] = languageData;
 
                 for (int j = 0; j < keysCount; j++)
                 {
-                    _languageData.Add(pkg.ReadString(), pkg.ReadString());
+                    languageData.Add(_tempPkg.ReadString(), _tempPkg.ReadString());
                 }
             }
-            Log.Debug($"Received server localization package. Size: {pkg.Size()}");
         }
 
         public void Serialize(ref ZPackage pkg)
         {
-            pkg.Write(_localizationData.Count);
+            _tempPkg.Clear();
+            _tempPkg.Write(_localizationData.Count);
             foreach (var language in _localizationData)
             {
-                pkg.Write(language.Value.Count);
-                pkg.Write(language.Key);
+                _tempPkg.Write(language.Value.Count);
+                _tempPkg.Write(language.Key);
                 foreach (var key in language.Value)
                 {
-                    pkg.Write(key.Key);
-                    pkg.Write(key.Value);
+                    _tempPkg.Write(key.Key);
+                    _tempPkg.Write(key.Value);
                 }
             }
+
+            pkg.WriteCompressed(_tempPkg);
+            Log.Debug($"Sent server localization package. Size: {pkg.Size()}");
         }
 
         public void SetData(LocalizationData localizationData)
