@@ -398,5 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 *.zip
 ServerLocalization.dll
-Newtonsoft.Json.dll
 .idea/*

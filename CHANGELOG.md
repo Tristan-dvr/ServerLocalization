@@ -1,2 +1,7 @@
-- 1.1.2 - Fixed applying default language
-- 1.1.0 - Initial release
+- 1.1.3 
+  - It no longer matters if key starts with character $
+  - Unnecessary dependency on the json plugin has been removed
+- 1.1.2 
+  - Fixed applying default language
+- 1.1.0 
+  - Initial release

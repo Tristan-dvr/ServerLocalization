@@ -1,6 +1,6 @@
 ﻿using BepInEx;
+using fastJSON;
 using HarmonyLib;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,7 +16,7 @@ namespace ServerLocalization
 
         public const string Guid = "org.tristan.serverlocalization";
         public const string Name = "Server Localization";
-        public const string Version = "1.1.2";
+        public const string Version = "1.1.3";
 
         private const string LocalizationDataRpc = "ServerLocalization_LocalizationDataRpc";
 
@@ -46,7 +46,7 @@ namespace ServerLocalization
                     var language = Path.GetFileNameWithoutExtension(Path.GetDirectoryName(file));
 
                     var json = File.ReadAllText(file);
-                    var data = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                    var data = JSON.ToObject<Dictionary<string, string>>(json);
                     _localizationData.AddLocalization(language, data);
                     Log.Info($"Added server localization {name}, language {language}");
                 }
@@ -113,7 +113,7 @@ namespace ServerLocalization
                 Log.Info($"Added server localization {language}");
                 foreach (var t in translations)
                 {
-                    Localization.instance.AddWord(t.Key, t.Value);
+                    Localization.instance.AddWord(t.Key.TrimStart('$'), t.Value);
                     Log.Debug($"Added server localization key {t.Key}->{t.Value}");
                 }
             }
