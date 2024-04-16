@@ -1,3 +1,5 @@
+- 1.1.4 
+  - Fixed compatibility with the latest game version
 - 1.1.3 
   - It no longer matters if key starts with character $
   - Unnecessary dependency on the json plugin has been removed

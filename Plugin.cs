@@ -16,7 +16,7 @@ namespace ServerLocalization
 
         public const string Guid = "org.tristan.serverlocalization";
         public const string Name = "Server Localization";
-        public const string Version = "1.1.3";
+        public const string Version = "1.1.4";
 
         private const string LocalizationDataRpc = "ServerLocalization_LocalizationDataRpc";
 
