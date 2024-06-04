@@ -15,6 +15,4 @@ Make you easily add and update localized quests using `Marketplace And Server NP
 Or for localization of random messages by using `Server Messages` or its analogs.
 Or replace some vanilla text on your server to make it unique. Anyway, your choice)
 
-#### Find me on Discord if you have feature request / bug report / found incompatibility with another mod / any question about the mod
-Typedef#3996
-https://discord.gg/MjQZKuB4z2
+#### If you have any questions / bug reports / suggestions for improvement or found incompatibility with another mod, feel free to contact me in discord `typedeff`
