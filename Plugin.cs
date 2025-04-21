@@ -16,7 +16,7 @@ namespace ServerLocalization
 
         public const string Guid = "org.tristan.serverlocalization";
         public const string Name = "Server Localization";
-        public const string Version = "1.1.4";
+        public const string Version = "1.1.5";
 
         private const string LocalizationDataRpc = "ServerLocalization_LocalizationDataRpc";
 
@@ -48,7 +48,7 @@ namespace ServerLocalization
                     var json = File.ReadAllText(file);
                     var data = JSON.ToObject<Dictionary<string, string>>(json);
                     _localizationData.AddLocalization(language, data);
-                    Log.Info($"Added server localization {name}, language {language}");
+                    Log.Info($"Loaded server localization {name}, language {language}");
                 }
                 catch (Exception e)
                 {
@@ -60,6 +60,8 @@ namespace ServerLocalization
         [HarmonyPatch]
         private class Patches
         {
+            private static bool _localizationInitialized = false;
+
             [HarmonyPostfix, HarmonyPatch(typeof(ZNet), nameof(ZNet.OnNewConnection))]
             private static void ZNet_OnNewConnection(ZNet __instance, ZNetPeer peer)
             {
@@ -74,16 +76,20 @@ namespace ServerLocalization
                     rpc.Invoke(LocalizationDataRpc, _localizationData);
             }
 
-            [HarmonyPostfix, HarmonyPatch(typeof(Localization), nameof(Localization.SetupLanguage))]
-            private static void Localization_SetupLanguage(string language)
+            [HarmonyPostfix, HarmonyPatch(typeof(Localization), MethodType.Constructor)]
+            private static void Localization_Initialize(Localization __instance)
             {
-                SetupServerLocalization(language);
+                SetupServerLocalization(__instance, __instance.GetSelectedLanguage());
+                _localizationInitialized = true;
             }
 
-            [HarmonyPrefix, HarmonyPatch(typeof(FejdStartup), nameof(FejdStartup.Awake))]
-            private static void FejdStartup_Awake()
+            [HarmonyPostfix, HarmonyPatch(typeof(Localization), nameof(Localization.SetupLanguage))]
+            private static void Localization_SetupLanguage(Localization __instance, string language)
             {
-                SetupServerLocalization(Localization.instance.GetSelectedLanguage());
+                if (!_localizationInitialized)
+                    return;
+
+                SetupServerLocalization(__instance, language);
             }
 
             private static void OnLocalizationDataReceived(ZRpc arg1, LocalizationData localizationData)
@@ -91,29 +97,30 @@ namespace ServerLocalization
                 _localizationData.SetData(localizationData);
                 Log.Info($"Server localization received. {localizationData}");
 
-                SetupServerLocalization(Localization.instance.GetSelectedLanguage());
+                var localization = Localization.instance;
+                SetupServerLocalization(localization, localization.GetSelectedLanguage());
             }
 
-            private static void SetupServerLocalization(string language)
+            private static void SetupServerLocalization(Localization localization, string language)
             {
                 var languages = _localizationData.GetLanguages();
                 if (languages.Contains(DefaultLanguage))
                 {
-                    AddTranslations(DefaultLanguage);
+                    AddTranslations(localization, DefaultLanguage);
                 }
-                if (languages.Contains(language))
+                if (!string.Equals(DefaultLanguage, language) && languages.Contains(language))
                 {
-                    AddTranslations(language);
+                    AddTranslations(localization, language);
                 }
             }
 
-            private static void AddTranslations(string language)
+            private static void AddTranslations(Localization localization, string language)
             {
                 var translations = _localizationData.GetTranslations(language);
                 Log.Info($"Added server localization {language}");
                 foreach (var t in translations)
                 {
-                    Localization.instance.AddWord(t.Key.TrimStart('$'), t.Value);
+                    localization.AddWord(t.Key.TrimStart('$'), t.Value);
                     Log.Debug($"Added server localization key {t.Key}->{t.Value}");
                 }
             }
