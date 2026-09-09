@@ -1,0 +1,110 @@
+name: Build and Publish
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  PROJECT_PATH: ServerLocalization.csproj
+  ASSEMBLY_NAME: ServerLocalization
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      zip-name: ${{ steps.create-package.outputs.zip-name }}
+      package-name: ${{ steps.read-manifest.outputs.package-name }}
+      package-description: ${{ steps.read-manifest.outputs.package-description }}
+      package-website: ${{ steps.read-manifest.outputs.package-website }}
+      package-version: ${{ steps.read-manifest.outputs.package-version }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_PATH }}
+
+    - name: Restore NuGet packages
+      run: nuget restore ${{ env.PROJECT_PATH }} -SolutionDirectory .
+
+    - name: Build project
+      run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
+
+    - name: Create release package
+      id: create-package
+      shell: pwsh
+      run: |
+        $projectDir = Split-Path "${{ env.PROJECT_PATH }}" -Parent
+        if ([string]::IsNullOrWhiteSpace($projectDir)) { $projectDir = "." }
+        $assemblyName = "${{ env.ASSEMBLY_NAME }}"
+        $dllPath = Join-Path $projectDir "bin\Release\$assemblyName.dll"
+        if (-not (Test-Path $dllPath)) {
+          echo "DLL not found at: $dllPath"
+          exit 1
+        }
+
+        $manifest = Get-Content "manifest.json" | ConvertFrom-Json
+        $zipName = "$($manifest.name)-v$($manifest.version_number).zip"
+
+        New-Item -ItemType Directory -Path "package" -Force | Out-Null
+        Copy-Item $dllPath "package\$assemblyName.dll"
+        Copy-Item "manifest.json" "package\"
+        Copy-Item "icon.png" "package\"
+        Copy-Item "README.md" "package\"
+        Copy-Item "CHANGELOG.md" "package\"
+
+        Compress-Archive -Path "package\*" -DestinationPath $zipName -Force
+        echo "Created package: $zipName"
+        echo "zip-name=$zipName" >> $env:GITHUB_OUTPUT
+
+    - name: Read manifest
+      id: read-manifest
+      shell: pwsh
+      run: |
+        $manifest = Get-Content "manifest.json" | ConvertFrom-Json
+        echo "package-name=$($manifest.name)" >> $env:GITHUB_OUTPUT
+        echo "package-description=$($manifest.description)" >> $env:GITHUB_OUTPUT
+        echo "package-website=$($manifest.website_url)" >> $env:GITHUB_OUTPUT
+        echo "package-version=$($manifest.version_number)" >> $env:GITHUB_OUTPUT
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-package
+        path: ${{ steps.create-package.outputs.zip-name }}
+        retention-days: 1
+        if-no-files-found: error
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-package
+        path: .
+
+    - name: Publish to Thunderstore
+      uses: GreenTF/upload-thunderstore-package@v4.3
+      with:
+        token: ${{ secrets.TS_TOKEN }}
+        community: valheim
+        namespace: Tristan
+        name: ${{ needs.build.outputs.package-name }}
+        description: ${{ needs.build.outputs.package-description }}
+        version: ${{ needs.build.outputs.package-version }}
+        file: ${{ needs.build.outputs.zip-name }}
+        website: ${{ needs.build.outputs.package-website }}
+        repo: thunderstore.io
