@@ -1,3 +1,5 @@
+- 1.2.0
+  - Fixed compatibility with new game version
 - 1.1.5
   - Fixed compatibility with Warfare mods (and some others)
 - 1.1.4 
